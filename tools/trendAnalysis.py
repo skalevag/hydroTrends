@@ -1,12 +1,101 @@
 import numpy as np
 import trend
 from statsmodels.tsa import stattools
+import calendar
+import datetime
 
+#TODO: create class that is stacked array with methods to do trend analysis
+#method 1: moving average
+#method 2: trend analysis
+
+## FUNCTIONS
+# calculating moving averages
+def extractMA(timeseries, interval, startYear, endYear, removeFeb29 = True):
+    """
+    Exstracts moving average timeseries in given timeperiod 
+    
+    Parameters
+    ----------
+    timeseries: 
+        a pandas timeseries, with datetime index
+    interval: int
+        number of days in window
+    startYear: int
+        start of timeseries
+    endYear: int
+        end of timeseries, 
+        i.e. last year to be INCLUDED in the extracted timeseries
+        
+    Returns
+    -------
+    timeseries for given years
+    """
+    #start = datetime.datetime(startYear,1,1)
+    #end = datetime.datetime(endYear+1,1,1)
+    
+    years = np.arange(startYear,endYear+1)
+    
+    if removeFeb29:
+        # removing feb 29 values in leap years
+        # important for reshaping to arrays later
+        for year in years:
+            if calendar.isleap(year):
+                d = datetime.datetime(year,2,29)
+                d = d.strftime(format="%Y-%m-%d")
+                # method 1
+                try:
+                    mask = ~(timeseries.index==d)
+                    timeseries = timeseries[mask]
+                # method 2
+                except:
+                    None
+                else:
+                    try:
+                        d = timeseries.loc[d].index
+                        timeseries.drop(d,inplace=True)
+                    except:
+                        None
+                
+    
+    series = timeseries.rolling(interval,center=True).mean()
+    return series[f"{startYear}":f"{endYear}"]
+
+
+# reshaping to array
+def reshapeTStoArray(data):
+    """
+    Reshapes moving average smoothed data of one catchment from timeseries to array.
+    
+    OBS! 
+    - Timeseries has already been extracted for a given period.
+    - Feb 29 has been removed
+    
+    Parameters
+    ----------
+    data: pandas.DataFrame
+        timeseries from a single catchment
+    
+    Returns
+    -------
+    numpy.array
+        array of shape (doy,year) with the catchments ordered by altitude
+    """
+    
+    dataYears = np.unique(data.index.year)
+
+    # filling array
+    array = []
+    for y in dataYears:
+        array.append(np.array(data[f"{y}"].iloc[:,0]))
+        #print(np.array(data[f"{y}"].iloc[:,0]).shape)
+    return np.stack(array,axis=1)
+
+# daily trend analysis
 def autocorrTest(ts,alpha=0.05):
     """
         Ljung-Box test for significant autocorrelation in a time series.
         """
-    p = stattools.acf(ts,qstat=True,nlags=1)[3]
+    p = stattools.acf(ts,qstat=True,nlags=1)[2]
     p = p[0]
     sign = p < alpha
     return sign

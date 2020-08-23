@@ -111,7 +111,6 @@ def snumber_to_stnr(snumber):
     return regine,main
 
 # importing SeNorge and runoff data
-
 def readRunoff(catchmentNo,folder='Data/runoff'):
     """
     Reads streamflow data in 'Data/runoff' folder for a specific catchment number.
@@ -318,8 +317,8 @@ def extractMA(timeseries, interval, startYear, endYear, removeFeb29 = True):
     -------
     timeseries for given years
     """
-    start = datetime.datetime(startYear,1,1)
-    end = datetime.datetime(endYear+1,1,1)
+    #start = datetime.datetime(startYear,1,1)
+    #end = datetime.datetime(endYear+1,1,1)
     
     years = np.arange(startYear,endYear+1)
     
@@ -394,7 +393,7 @@ def autocorrTest(ts,alpha=0.05):
     """
         Ljung-Box test for significant autocorrelation in a time series.
         """
-    acf, qstat, p = stattools.acf(ts,qstat=True,nlags=1)
+    p = stattools.acf(ts,qstat=True,nlags=1)[2]
     p = p[0]
     sign = p < alpha
     return sign

@@ -2,7 +2,7 @@
 Amalie Skålevåg, 20.11.2019
 """
 # modules
-from HTfunctions import * 
+from HTfunctions import extractMA,reshapeTStoArray, readRain, readRunoff,readSeNorge,readSnow,readTemp
 import numpy as np
 import datetime as dt
 import pandas as pd
