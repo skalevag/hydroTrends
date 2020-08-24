@@ -1,12 +1,72 @@
+"""
+Docstring...
+
+Daily resolved trend analysis
+-----------------------------
+Bla bla
+
+References
+----------
+
+Resources
+---------
+"""
+
 import numpy as np
+import pandas as pd
 import trend
 from statsmodels.tsa import stattools
 import calendar
 import datetime
 
-#TODO: create class that is stacked array with methods to do trend analysis
-#method 1: moving average
-#method 2: trend analysis
+#TODO: finish creating class that is stacked array with methods to perform trend analysis on
+class timeSeriesStack:
+    """
+    This class takes data from a dictionary of time series data, 
+    extracts the data for chosen years and applies moving average, 
+    and finally stacks the data in a 3D-array, sorted by a specific 
+    attribute in a metadata table.
+    """
+    def __init__(self,data,variable,unit,metadata,sortBy):
+        """
+        Initialises timeSeriesStack.
+
+        Parameters
+        ----------
+        data: dict
+            dictionary containing all daily time series as pandas.DataFrames with datetimeIndex
+            keys must correspond to contents in "ID" column of metadata
+        variable: str
+            variable name
+        unit: str
+            unit of variable to be stacked
+        metadata: pandas.DataFrame
+            metadata table
+            must at MINIMUM contain an "ID" column, 
+            in addition to one or more attribute columns by which data can be sorted
+        sortBy: str
+            header of column in metadata table by which to sort the data
+
+        Returns
+        -------
+
+        """
+        self.metadata = metadata
+        self.variable = variable
+        self.unit = unit
+        self.array = None #TODO: some def to create the stacked data
+
+    #method 1: moving average
+    #method 2: trend analysis
+
+    class trendArray: #TODO: check if this is best way! maybe NOT as sub-class?
+        #TODO: calculate trends from timeSeriesStack, must contain following attributes
+        magnitudes = None 
+        significance = None
+        fieldSignificance = None
+        unit = str()
+        IDs= []
+
 
 ## FUNCTIONS
 # calculating moving averages
