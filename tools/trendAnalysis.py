@@ -17,8 +17,9 @@ import pandas as pd
 import trend
 from statsmodels.tsa import stattools
 import calendar
-import datetime
+from datetime import datetime
 
+# CLASSES
 #TODO: finish creating class that is stacked array with methods to perform trend analysis on
 class timeSeriesStack:
     """
@@ -54,18 +55,27 @@ class timeSeriesStack:
         self.metadata = metadata
         self.variable = variable
         self.unit = unit
+        self.sortBy = sortBy
         self.array = None #TODO: some def to create the stacked data
+        self.IDs = list() #TODO: should be the metadata["ID"] column asfter sorted by sortBy attribute
 
-    #method 1: moving average
-    #method 2: trend analysis
 
-    class trendArray: #TODO: check if this is best way! maybe NOT as sub-class?
-        #TODO: calculate trends from timeSeriesStack, must contain following attributes
-        magnitudes = None 
-        significance = None
-        fieldSignificance = None
-        unit = str()
-        IDs= []
+class trendArray: 
+    def __init__(self,timeSeriesStack,signMethod="MK",magMethod="TS",alpha=0.1):
+        self.unit = timeSeriesStack.unit
+        self.IDs= timeSeriesStack.IDs
+        self.sortedBy = timeSeriesStack.sortBy
+        self.signMethod = signMethod
+        self.magMethod = magMethod
+        self.alpha = alpha
+    #TODO: calculate trends from timeSeriesStack, must contain following attributes
+    def mag(self,method=self.magMethod):
+        self.magnitudes = None #2D array
+    def sign(self,method=self.signMethod,alpha=self.alpha):
+        self.significance = None #2D array
+    def fieldSign(self,alpha=self.alpha):
+        self.fieldSignificance = None #1D array
+        
 
 
 ## FUNCTIONS
@@ -90,8 +100,8 @@ def extractMA(timeseries, interval, startYear, endYear, removeFeb29 = True):
     -------
     timeseries for given years
     """
-    #start = datetime.datetime(startYear,1,1)
-    #end = datetime.datetime(endYear+1,1,1)
+    #start = datetime(startYear,1,1)
+    #end = datetime(endYear+1,1,1)
     
     years = np.arange(startYear,endYear+1)
     
@@ -100,7 +110,7 @@ def extractMA(timeseries, interval, startYear, endYear, removeFeb29 = True):
         # important for reshaping to arrays later
         for year in years:
             if calendar.isleap(year):
-                d = datetime.datetime(year,2,29)
+                d = datetime(year,2,29)
                 d = d.strftime(format="%Y-%m-%d")
                 # method 1
                 try:
