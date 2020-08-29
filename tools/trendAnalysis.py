@@ -69,12 +69,15 @@ class trendArray:
         self.magMethod = magMethod
         self.alpha = alpha
     #TODO: calculate trends from timeSeriesStack, must contain following attributes
-    def mag(self,method=self.magMethod):
-        self.magnitudes = None #2D array
-    def sign(self,method=self.signMethod,alpha=self.alpha):
-        self.significance = None #2D array
-    def fieldSign(self,alpha=self.alpha):
-        self.fieldSignificance = None #1D array
+    #def mag(self,method=self.magMethod):
+        #self.magnitudes = None #2D array
+
+    #def sign(self,method=self.signMethod,alpha=self.alpha):
+        #self.significance = None #2D array
+
+    #def fieldSign(self,alpha=self.alpha):
+        #self.fieldSignificance = None #1D array
+
         
 
 
@@ -111,7 +114,7 @@ def extractMA(timeseries, interval, startYear, endYear, removeFeb29 = True):
         for year in years:
             if calendar.isleap(year):
                 d = datetime(year,2,29)
-                d = d.strftime(format="%Y-%m-%d")
+                d = d.strftime(fmt="%Y-%m-%d")
                 # method 1
                 try:
                     mask = ~(timeseries.index==d)
