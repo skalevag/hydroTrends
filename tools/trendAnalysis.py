@@ -28,7 +28,7 @@ class timeSeriesStack:
     and finally stacks the data in a 3D-array, sorted by a specific 
     attribute in a metadata table.
     """
-    def __init__(self,data,variable,unit,metadata,sortBy):
+    def __init__(self,data,variable,unit,metadata,sortBy,MA,startYear,endYear):
         """
         Initialises timeSeriesStack.
 
@@ -56,9 +56,22 @@ class timeSeriesStack:
         self.variable = variable
         self.unit = unit
         self.sortBy = sortBy
-        self.array = None #TODO: some def to create the stacked data
         self.IDs = list() #TODO: should be the metadata["ID"] column asfter sorted by sortBy attribute
 
+        # make smoothed and stacked array
+        arrays = list()
+        for c in self.IDs:
+            smoothed = extractMA(data[c],MA,startYear,endYear)
+            #print(smoothed.index)
+            arrays.append(reshapeTStoArray(smoothed))
+        self.array = np.dstack(arrays)
+    
+    def saveToFile(self,DIR,):
+        """
+        Save the array and sorted metadata table to file.
+        """
+        np.save(pathToFile,self.array)
+        
 
 class trendArray: 
     def __init__(self,timeSeriesStack,signMethod="MK",magMethod="TS",alpha=0.1):
@@ -246,3 +259,5 @@ def trendSignificance(array,alpha):
                     out[day] = 1
         output.append(out)
     return np.array(output)
+
+#TODO: add CI bootstrap method
