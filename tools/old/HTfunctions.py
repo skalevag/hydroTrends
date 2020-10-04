@@ -7,7 +7,7 @@ from pathlib import Path
 import trend
 from statsmodels.tsa import stattools
 import calendar
-import geopandas as gpd
+#import geopandas as gpd
 import descartes
 from shapely.geometry import Point,Polygon
 import itertools

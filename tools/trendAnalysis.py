@@ -28,7 +28,7 @@ class timeSeriesStack:
     and finally stacks the data in a 3D-array, sorted by a specific 
     attribute in a metadata table.
     """
-    def __init__(self,data,variable,unit,metadata,sortBy,MA,startYear,endYear):
+    def __init__(self,data,variable,unit,metadata,sortBy,IDcol,MA,startYear,endYear):
         """
         Initialises timeSeriesStack.
 
@@ -47,16 +47,22 @@ class timeSeriesStack:
             in addition to one or more attribute columns by which data can be sorted
         sortBy: str
             header of column in metadata table by which to sort the data
+        IDcol: str
+        MA: int
+        startYear: int
+        endYear:int 
 
         Returns
         -------
 
         """
-        self.metadata = metadata
+        self.metadata = metadata.sort_values(sortBy)
         self.variable = variable
         self.unit = unit
-        self.sortBy = sortBy
-        self.IDs = list() #TODO: should be the metadata["ID"] column asfter sorted by sortBy attribute
+        self.sortAttributeValues = list(self.metadata[sortBy])
+        self.IDs = list(self.metadata[IDcol])
+        self.movingAverageDays = MA
+        self.sortedBy = sortBy
 
         # make smoothed and stacked array
         arrays = list()
@@ -66,30 +72,47 @@ class timeSeriesStack:
             arrays.append(reshapeTStoArray(smoothed))
         self.array = np.dstack(arrays)
     
-    def saveToFile(self,DIR,):
+    def saveToFile(self,name,DIR="./"):
         """
         Save the array and sorted metadata table to file.
         """
-        np.save(pathToFile,self.array)
-        
+        fileName = f"{name}_{self.variable}_sortedBy{self.sortedBy}_{self.movingAverageDays}MA"
+        self.filenameHead = fileName
+        pathToFile = DIR + fileName
+        np.save(pathToFile+"_stackedArray.npy",self.array)
+        self.metadata.to_csv(pathToFile+"_metadata.csv")
+
 
 class trendArray: 
-    def __init__(self,timeSeriesStack,signMethod="MK",magMethod="TS",alpha=0.1):
+    def __init__(self,timeSeriesStack):
+        self.stackedArray = timeSeriesStack.array
         self.unit = timeSeriesStack.unit
-        self.IDs= timeSeriesStack.IDs
-        self.sortedBy = timeSeriesStack.sortBy
-        self.signMethod = signMethod
-        self.magMethod = magMethod
-        self.alpha = alpha
-    #TODO: calculate trends from timeSeriesStack, must contain following attributes
-    #def mag(self,method=self.magMethod):
-        #self.magnitudes = None #2D array
+        self.IDs = timeSeriesStack.IDs
+        self.sortedBy = timeSeriesStack.sortedBy
+ 
+    def mag(self,method="theil-sen"):
+        if method=="theil-sen":
+            self.magnitudes = trendMagnitude(self.stackedArray)
+        else:
+            raise Exception("Accepted methods: ['theil-sen']")
 
-    #def sign(self,method=self.signMethod,alpha=self.alpha):
-        #self.significance = None #2D array
+    def sign(self,method="mann-kendall",alpha=0.1):
+        if method=="mann-kendall":
+            self.significance = trendSignificance(self.stackedArray,alpha)
+        else:
+            raise Exception("Accepted methods: ['mann-kendall']")
 
-    #def fieldSign(self,alpha=self.alpha):
-        #self.fieldSignificance = None #1D array
+    def fieldSign(self,alpha):
+        #TODO: finish this
+        self.fieldSignificance = None #1D array
+    
+    def saveToFile(self,name,DIR="./"):
+        """
+        Save the trend arrays to file.
+        """
+        pathToFile = DIR + timeSeriesStack.filenameHead
+        np.save(pathToFile+"_trendMagnitudes.npy",self.magnitudes)
+        np.save(pathToFile+"_trendSignificance.npy",self.significance)
 
         
 
@@ -127,7 +150,7 @@ def extractMA(timeseries, interval, startYear, endYear, removeFeb29 = True):
         for year in years:
             if calendar.isleap(year):
                 d = datetime(year,2,29)
-                d = d.strftime(fmt="%Y-%m-%d")
+                d = d.strftime(format="%Y-%m-%d")
                 # method 1
                 try:
                     mask = ~(timeseries.index==d)
@@ -200,7 +223,7 @@ def prewhiten(ts):
             pw[i] = (ts[i] - r*ts[i-1])/(1 - r)
     return pw
 
-def trendMagnitude(array):
+def trendMagnitude(array,applyPrewhitening=True):
     """
         Calculates the trend magnitude for each doy time series.
         
@@ -223,13 +246,13 @@ def trendMagnitude(array):
             out = np.full(arr.shape[0],np.nan) # create empty array
             for day in range(arr.shape[0]):
                 ts = arr[day,:]
-                if autocorrTest(ts):
+                if applyPrewhitening & autocorrTest(ts):
                     ts = prewhiten(ts)
                 out[day] = trend.sen_slope(ts)
         output.append(out)
     return np.array(output)
 
-def trendSignificance(array,alpha):
+def trendSignificance(array,alpha,applyPrewhitening=True):
     """
         Calculates the trend significance at specified significance level alpha for each doy time series.
         
@@ -252,7 +275,7 @@ def trendSignificance(array,alpha):
             out = np.full(arr.shape[0],0) # create empty array
             for day in range(arr.shape[0]):
                 ts = arr[day,:]
-                if autocorrTest(ts):
+                if applyPrewhitening & autocorrTest(ts):
                     ts = prewhiten(ts)
                 p = trend.mann_kendall(ts) #calculate p-value
                 if p < alpha: #calculate trend magnitude if significant trend is detected
