@@ -18,6 +18,7 @@ import trend
 from statsmodels.tsa import stattools
 import calendar
 from datetime import datetime
+from pathlib import Path
 
 # CLASSES
 #TODO: finish creating class that is stacked array with methods to perform trend analysis on
@@ -54,7 +55,9 @@ class timeSeriesStack:
 
         Returns
         -------
-
+        metadata: pd.DataFrame
+            sorted metadata table
+        
         """
         self.metadata = metadata.sort_values(sortBy)
         self.variable = variable
@@ -63,6 +66,7 @@ class timeSeriesStack:
         self.IDs = list(self.metadata[IDcol])
         self.movingAverageDays = MA
         self.sortedBy = sortBy
+        self.period = f"{startYear}-{endYear}"
 
         # make smoothed and stacked array
         arrays = list()
@@ -71,51 +75,70 @@ class timeSeriesStack:
             #print(smoothed.index)
             arrays.append(reshapeTStoArray(smoothed))
         self.array = np.dstack(arrays)
+        
+    def makeClimatology():
+        self.climatology = np.nanmean(self.array,axis=1).T
     
     def saveToFile(self,name,DIR="./"):
         """
         Save the array and sorted metadata table to file.
         """
-        fileName = f"{name}_{self.variable}_sortedBy{self.sortedBy}_{self.movingAverageDays}MA"
+        fileName = f"{name}_{self.variable}_sortedBy{self.sortedBy}_{self.movingAverageDays}MA_{period}"
         self.filenameHead = fileName
-        pathToFile = DIR + fileName
-        np.save(pathToFile+"_stackedArray.npy",self.array)
-        self.metadata.to_csv(pathToFile+"_metadata.csv")
+        np.save(Path(DIR).joinpath(fileName+"_stackedArray.npy"),self.array)
+        self.metadata.to_csv(Path(DIR).joinpath(fileName+"_metadata.csv"))
 
 
 class trendArray: 
-    def __init__(self,timeSeriesStack):
-        self.stackedArray = timeSeriesStack.array
-        self.unit = timeSeriesStack.unit
-        self.IDs = timeSeriesStack.IDs
-        self.sortedBy = timeSeriesStack.sortedBy
+    def __init__(self,tsStack):
+        self.tsStack = tsStack
+        self.unit = tsStack.unit
+        self.IDs = tsStack.IDs
+        self.sortedBy = tsStack.sortedBy
  
-    def mag(self,method="theil-sen"):
+    def mag(self,method="theil-sen",change="abs",applyPrewhitening=True):
+        """
+        Calculates the trend magnitudes from the predetermined parameters.
+
+        Parameters
+        ----------
+        method: str
+            "theil-sen"
+        change: str
+            "abs"   absolute change
+            "rel"   relative change
+        """
         if method=="theil-sen":
-            self.magnitudes = trendMagnitude(self.stackedArray)
+            magnitudes = trendMagnitude(self.tsStack.array,applyPrewhitening=applyPrewhitening)
         else:
             raise Exception("Accepted methods: ['theil-sen']")
+        
+        if change == "rel":
+            self.magnitudes = (magnitudes/tsStack.climatology)*100
+            self.trendUnit = "% / yr"
+        elif change == "abs":
+            self.magnitudes = magnitudes
+            self.trendUnit = tsStack.unit + " / yr"
 
-    def sign(self,method="mann-kendall",alpha=0.1):
+    def sign(self,method="mann-kendall",alpha=0.1,applyPrewhitening=True):
+        self.significanceLevel = alpha
         if method=="mann-kendall":
-            self.significance = trendSignificance(self.stackedArray,alpha)
+            self.significance = trendSignificance(self.tsStack.array,alpha,applyPrewhitening=applyPrewhitening)
         else:
             raise Exception("Accepted methods: ['mann-kendall']")
 
     def fieldSign(self,alpha):
         #TODO: finish this
-        self.fieldSignificance = None #1D array
+        self.fieldSignificance = "method is not yet implemented" #1D array
     
-    def saveToFile(self,name,DIR="./"):
+    def saveToFile(self,DIR="./",name=tsStack.filenameHead):
         """
         Save the trend arrays to file.
         """
-        pathToFile = DIR + timeSeriesStack.filenameHead
-        np.save(pathToFile+"_trendMagnitudes.npy",self.magnitudes)
-        np.save(pathToFile+"_trendSignificance.npy",self.significance)
+        np.save(Path(DIR).joinpath(name + "_trendMagnitudes.npy"),self.magnitudes)
+        np.save(Path(DIR).joinpath(name + "_trendSignificance.npy"),self.significance)
 
         
-
 
 ## FUNCTIONS
 # calculating moving averages
@@ -202,8 +225,8 @@ def reshapeTStoArray(data):
 # daily trend analysis
 def autocorrTest(ts,alpha=0.05):
     """
-        Ljung-Box test for significant autocorrelation in a time series.
-        """
+    Ljung-Box test for significant autocorrelation in a time series.
+    """
     p = stattools.acf(ts,qstat=True,nlags=1)[2]
     p = p[0]
     sign = p < alpha
@@ -211,11 +234,11 @@ def autocorrTest(ts,alpha=0.05):
 
 def prewhiten(ts):
     """
-        Pre-whitening procedure of a time series.
-        
-        After Wang&Swail, 2001:
-        https://doi.org/10.1175/1520-0442(2001)014%3C2204:COEWHI%3E2.0.CO;2
-        """
+    Pre-whitening procedure of a time series.
+    
+    After Wang&Swail, 2001:
+    https://doi.org/10.1175/1520-0442(2001)014%3C2204:COEWHI%3E2.0.CO;2
+    """
     r = stattools.acf(ts,nlags=1)[1]
     pw = ts.copy()
     for i in range(ts.shape[0]-1):
@@ -225,18 +248,18 @@ def prewhiten(ts):
 
 def trendMagnitude(array,applyPrewhitening=True):
     """
-        Calculates the trend magnitude for each doy time series.
-        
-        Parameters
-        ----------
-        array: numpy.array
-        array of shape: (doy,year,catchment) containing data to be analysed
-        
-        Returns
-        -------
-        numpy.array
-        array of trend magnitude, shape: (catchments,doy)
-        """
+    Calculates the trend magnitude for each doy time series.
+    
+    Parameters
+    ----------
+    array: numpy.array
+    array of shape: (doy,year,catchment) containing data to be analysed
+    
+    Returns
+    -------
+    numpy.array
+    array of trend magnitude, shape: (catchments,doy)
+    """
     output = []
     for c in range(array.shape[2]):
         arr = array[:,:,c] # slicing array by catchment
@@ -254,18 +277,18 @@ def trendMagnitude(array,applyPrewhitening=True):
 
 def trendSignificance(array,alpha,applyPrewhitening=True):
     """
-        Calculates the trend significance at specified significance level alpha for each doy time series.
-        
-        Parameters
-        ----------
-        array: numpy.array
-        array of shape: (doy,year,catchment) containing data to be analysed
-        
-        Returns
-        -------
-        numpy.array
-        array of trend significance, shape: (catchments,doy)
-        """
+    Calculates the trend significance at specified significance level alpha for each doy time series.
+    
+    Parameters
+    ----------
+    array: numpy.array
+    array of shape: (doy,year,catchment) containing data to be analysed
+    
+    Returns
+    -------
+    numpy.array
+    array of trend significance, shape: (catchments,doy)
+    """
     output = []
     for c in range(array.shape[2]):
         arr = array[:,:,c] # slicing array by catchment
