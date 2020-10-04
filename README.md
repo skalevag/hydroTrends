@@ -6,8 +6,7 @@ It contains two main tools:
 * Plotting tool
 
 ## Trend analysis
-Daily trend analysis approach after Kormann, et al. 2014; 2015
-Only implemented the approach into python code, method is the same
+Daily trend analysis procedure developed by [Kormann et al., 2014](https://doi.org/10.2166/wcc.2014.099). For the Mann-Kendall test and Theil-Sen Slope Estimator the [USGS *trend* module](https://github.com/USGS-python/trend)
 
 ## Plotting
 All my own code for plotting the highly resolved trends.
