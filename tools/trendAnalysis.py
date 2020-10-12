@@ -19,6 +19,7 @@ from statsmodels.tsa import stattools
 import calendar
 from datetime import datetime
 from pathlib import Path
+import matplotlib.pyplot as plt
 
 # CLASSES
 #TODO: finish creating class that is stacked array with methods to perform trend analysis on
@@ -59,7 +60,7 @@ class timeSeriesStack:
             sorted metadata table
         
         """
-        self.metadata = metadata.sort_values(sortBy)
+        self.metadata = metadata.sort_values(sortBy,ascending=False)
         self.variable = variable
         self.unit = unit
         self.sortAttributeValues = list(self.metadata[sortBy])
@@ -76,23 +77,39 @@ class timeSeriesStack:
             arrays.append(reshapeTStoArray(smoothed))
         self.array = np.dstack(arrays)
         
-    def makeClimatology():
+    def makeClimatology(self):
         self.climatology = np.nanmean(self.array,axis=1).T
     
     def saveToFile(self,name,DIR="./"):
         """
         Save the array and sorted metadata table to file.
         """
-        fileName = f"{name}_{self.variable}_sortedBy{self.sortedBy}_{self.movingAverageDays}MA_{period}"
-        self.filenameHead = fileName
+        fileName = f"{name}_{self.variable}_sortedBy{self.sortedBy}_{self.movingAverageDays}MA_{self.period}"
         np.save(Path(DIR).joinpath(fileName+"_stackedArray.npy"),self.array)
         self.metadata.to_csv(Path(DIR).joinpath(fileName+"_metadata.csv"))
+    
+    def quickplot(self):
+        """
+        Plots the daily mean, 5th, and 95th quantile.
+        """
+        try:
+            self.climatology
+        except AttributeError:
+            self.makeClimatology()
+        for c in range(self.array.shape[2]):
+            plt.figure()
+            plt.fill_between(np.arange(365),np.nanquantile(self.array[:,:,c],0.05,axis=1),np.nanquantile(self.array[:,:,c],0.95,axis=1),color="lightgrey",label="5th-95th quantile")
+            plt.plot(self.climatology[c,:],"b",label="mean")
+            plt.xlim(0,365)
+            plt.ylabel(f"{self.variable.capitalize()} {self.unit}")
+            plt.xlabel("DOY")
+            plt.title(f"{self.IDs[c]}, {self.sortedBy.capitalize()}: {self.sortAttributeValues[c]:.0f} m")
+            plt.legend()
 
 
 class trendArray: 
     def __init__(self,tsStack):
         self.tsStack = tsStack
-        self.unit = tsStack.unit
         self.IDs = tsStack.IDs
         self.sortedBy = tsStack.sortedBy
  
@@ -114,11 +131,11 @@ class trendArray:
             raise Exception("Accepted methods: ['theil-sen']")
         
         if change == "rel":
-            self.magnitudes = (magnitudes/tsStack.climatology)*100
+            self.magnitudes = (magnitudes/self.tsStack.climatology)*100
             self.trendUnit = "% / yr"
         elif change == "abs":
             self.magnitudes = magnitudes
-            self.trendUnit = tsStack.unit + " / yr"
+            self.trendUnit = self.tsStack.unit + " / yr"
 
     def sign(self,method="mann-kendall",alpha=0.1,applyPrewhitening=True):
         self.significanceLevel = alpha
@@ -131,12 +148,13 @@ class trendArray:
         #TODO: finish this
         self.fieldSignificance = "method is not yet implemented" #1D array
     
-    def saveToFile(self,DIR="./",name=tsStack.filenameHead):
+    def saveToFile(self,name,DIR="./"):
         """
         Save the trend arrays to file.
         """
-        np.save(Path(DIR).joinpath(name + "_trendMagnitudes.npy"),self.magnitudes)
-        np.save(Path(DIR).joinpath(name + "_trendSignificance.npy"),self.significance)
+        fileName = f"{name}_{self.tsStack.variable}_sortedBy{self.tsStack.sortedBy}_{self.tsStack.movingAverageDays}MA_{self.tsStack.period}"
+        np.save(Path(DIR).joinpath(fileName + "_trendMagnitudes.npy"),self.magnitudes)
+        np.save(Path(DIR).joinpath(fileName + "_trendSignificance.npy"),self.significance)
 
         
 
