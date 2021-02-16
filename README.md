@@ -5,6 +5,8 @@ It contains two main tools:
 * Trend analysis tool
 * Plotting tool (in development)
 
+For a brief demonstration of the tool see [here](demo.ipynb).
+
 ## Dependencies
 For the Mann-Kendall test and Theil-Sen Slope Estimator the [USGS *trend* module](https://github.com/USGS-python/trend), in addition to a number of other [required modules](requirements.txt)
 
