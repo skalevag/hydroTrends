@@ -20,6 +20,7 @@ import calendar
 from datetime import datetime
 from pathlib import Path
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 # CLASSES
 #TODO: finish creating class that is stacked array with methods to perform trend analysis on
@@ -29,8 +30,30 @@ class timeSeriesStack:
     extracts the data for chosen years and applies moving average, 
     and finally stacks the data in a 3D-array, sorted by a specific 
     attribute in a metadata table.
+
+    Attributes
+    ----------
+    array: numpy.array
+        3D-array containing the moving average filtered values for the specified time period
+        shape: (day of year, years, number of catchments/stations)
+    metadata: pd.DataFrame
+        sorted metadata table
+    variable: str
+        variable name
+    unit: str
+        unit of variable to be stacked
+    sortAttributeValues: list
+        sorted list of values of attribute used to sort dataframe
+    IDs: list
+        sorted list of ID numbers
+    movingAverageDays: int
+        number of days in moving average filter (e.g. 5,10 or 30)
+    sortedBy: str
+        attribute/variable used to sort dataframe
+    period: str
+        time period analysed
     """
-    def __init__(self,data,variable,unit,metadata,sortBy,IDcol,MA,startYear,endYear):
+    def __init__(self,data,variable,unit,metadata,sortBy,sortAttributeUnit,IDcol,MA,startYear,endYear):
         """
         Initialises timeSeriesStack.
 
@@ -50,20 +73,23 @@ class timeSeriesStack:
         sortBy: str
             header of column in metadata table by which to sort the data
         IDcol: str
+            header of column in metadata table with catchment ID numbers
         MA: int
+            number of days in moving average filter (e.g. 5,10 or 30)
         startYear: int
-        endYear:int 
+            the first year in time period to be analysed
+        endYear:int
+            the last year in time period to be analysed
 
         Returns
         -------
-        metadata: pd.DataFrame
-            sorted metadata table
-        
+        timeSeriesStack
         """
         self.metadata = metadata.sort_values(sortBy,ascending=False)
         self.variable = variable
         self.unit = unit
         self.sortAttributeValues = list(self.metadata[sortBy])
+        self.sortAttributeUnit = sortAttributeUnit
         self.IDs = list(self.metadata[IDcol])
         self.movingAverageDays = MA
         self.sortedBy = sortBy
@@ -78,16 +104,36 @@ class timeSeriesStack:
         self.array = np.dstack(arrays)
         
     def makeClimatology(self):
+        """
+        Makes a climatology from timeSeriesStack.
+
+        Returns
+        -------
+        climatology: numpy.array
+            shape: (number of catchments/stations, day of year)
+        """
         self.climatology = np.nanmean(self.array,axis=1).T
+        return self.climatology
     
     def saveToFile(self,name,DIR="./"):
         """
-        Save the array and sorted metadata table to file.
+        Saves the array and sorted metadata table to file.
+
+        Parameters
+        ----------
+        name: str
+            the name of 
+        DIR: str
+            path to directory where data is to be saved
         """
         fileName = f"{name}_{self.variable}_sortedBy{self.sortedBy}_{self.movingAverageDays}MA_{self.period}"
         np.save(Path(DIR).joinpath(fileName+"_stackedArray.npy"),self.array)
         self.metadata.to_csv(Path(DIR).joinpath(fileName+"_metadata.csv"))
-    
+        try:
+            np.save(Path(DIR).joinpath(fileName+"_climatology.npy"),self.climatology)
+        except AttributeError:
+            pass
+            
     def quickplot(self):
         """
         Plots the daily mean, 5th, and 95th quantile.
@@ -105,6 +151,19 @@ class timeSeriesStack:
             plt.xlabel("DOY")
             plt.title(f"{self.IDs[c]}, {self.sortedBy.capitalize()}: {self.sortAttributeValues[c]:.0f} m")
             plt.legend()
+    
+    def rasterHydrograph(self):
+        """
+        Plot raster hydrographs of all catchments.
+        """
+        for c in range(self.array.shape[2]):
+            plt.figure()
+            plt.imshow(self.array[:,:,c].T,aspect=3,cmap="cividis",norm=mpl.colors.LogNorm())
+            plt.colorbar(label=f"{self.variable} {self.unit}")
+            plt.title(f"{self.IDs[c]}, {self.sortedBy.capitalize()} {self.sortAttributeValues[c]} {self.sortAttributeUnit}")
+            plt.ylabel(f"Years since {self.period[:4]}")
+            plt.xlabel("DOY")
+
 
 
 class trendArray: 
@@ -153,8 +212,14 @@ class trendArray:
         Save the trend arrays to file.
         """
         fileName = f"{name}_{self.tsStack.variable}_sortedBy{self.tsStack.sortedBy}_{self.tsStack.movingAverageDays}MA_{self.tsStack.period}"
-        np.save(Path(DIR).joinpath(fileName + "_trendMagnitudes.npy"),self.magnitudes)
-        np.save(Path(DIR).joinpath(fileName + "_trendSignificance.npy"),self.significance)
+        try:
+            np.save(Path(DIR).joinpath(fileName + "_trendMagnitudes.npy"),self.magnitudes)
+        except AttributeError:
+            pass
+        try:
+            np.save(Path(DIR).joinpath(fileName + "_trendSignificance.npy"),self.significance)
+        except AttributeError:
+            pass
 
         
 
