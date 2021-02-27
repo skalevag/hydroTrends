@@ -1,4 +1,4 @@
-# hydroTrends
+# hydroTrends: A tool for high-resolution trend analysis
 This module was developed for the scientific paper [Skålevåg & Vormoor, 2021](https://doi.org/10.22541/au.161319077.75813136/v1), and is still under development.
 
 It contains two main tools:
